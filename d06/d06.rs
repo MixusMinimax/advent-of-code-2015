@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use std::cmp::{max, min};
 use std::ops::{Index, IndexMut};
 use std::str::FromStr;
 use vecmath::Vector2;
@@ -72,18 +71,16 @@ impl<T> IndexMut<usize> for Grid<T> {
 }
 
 fn execute_instruction1(mut grid: Grid<bool>, ins: Instruction) -> Grid<bool> {
-    let (Instruction::On(from, to) | Instruction::Off(from, to) | Instruction::Toggle(from, to)) =
-        ins;
-    let tl = [min(from[0], to[0]), min(from[1], to[1])];
-    let br = [max(from[0], to[0]), max(from[1], to[1])];
-    for y in tl[0]..=br[0] {
-        for x in tl[1]..=br[1] {
+    use Instruction::*;
+    let (On(from, to) | Off(from, to) | Toggle(from, to)) = ins;
+    for y in from[0]..=to[0] {
+        for x in from[1]..=to[1] {
             let x = x as usize;
             let y = y as usize;
             match ins {
-                Instruction::On(..) => grid[y * 1000 + x] = true,
-                Instruction::Off(..) => grid[y * 1000 + x] = false,
-                Instruction::Toggle(..) => grid[y * 1000 + x] ^= true,
+                On(..) => grid[y * 1000 + x] = true,
+                Off(..) => grid[y * 1000 + x] = false,
+                Toggle(..) => grid[y * 1000 + x] ^= true,
             };
         }
     }
@@ -91,24 +88,22 @@ fn execute_instruction1(mut grid: Grid<bool>, ins: Instruction) -> Grid<bool> {
 }
 
 fn execute_instruction2(mut grid: Grid<u32>, ins: Instruction) -> Grid<u32> {
-    let (Instruction::On(from, to) | Instruction::Off(from, to) | Instruction::Toggle(from, to)) =
-        ins;
-    let tl = [min(from[0], to[0]), min(from[1], to[1])];
-    let br = [max(from[0], to[0]), max(from[1], to[1])];
-    for y in tl[0]..=br[0] {
-        for x in tl[1]..=br[1] {
+    use Instruction::*;
+    let (On(from, to) | Off(from, to) | Toggle(from, to)) = ins;
+    for y in from[0]..=to[0] {
+        for x in from[1]..=to[1] {
             let x = x as usize;
             let y = y as usize;
             match ins {
-                Instruction::On(..) => grid[y * 1000 + x] += 1,
-                Instruction::Off(..) => {
+                On(..) => grid[y * 1000 + x] += 1,
+                Off(..) => {
                     grid[y * 1000 + x] = if grid[y * 1000 + x] != 0 {
                         grid[y * 1000 + x] - 1
                     } else {
                         grid[y * 1000 + x]
                     }
                 }
-                Instruction::Toggle(..) => grid[y * 1000 + x] += 2,
+                Toggle(..) => grid[y * 1000 + x] += 2,
             };
         }
     }
