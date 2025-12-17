@@ -23,7 +23,6 @@ fn find_basement(s: &str) -> usize {
 }
 
 fn main() {
-    println!("Hello World!");
     let input = include_str!("input.txt");
     println!("Part1: {}", level(input));
     println!("Part2: {}", find_basement(input));
