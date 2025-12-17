@@ -15,6 +15,21 @@ path = "d02/d02.rs"
 name = "d03"
 path = "d03/d03.rs"
 
+[[bin]]
+name = "d04"
+path = "d04/d04.rs"
+
 [dependencies]
 #nom = "8.0.0"
+md-5 = "0.10.6"
 vecmath = "1.0.0"
+
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
