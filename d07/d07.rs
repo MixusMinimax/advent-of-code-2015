@@ -1,14 +1,35 @@
 #![feature(assert_matches)]
 
+use std::collections::{HashMap, VecDeque};
+use std::fmt;
+use std::fmt::Formatter;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Value {
     Lit(u16),
     Var(String),
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lit(i) => write!(f, "{i}"),
+            Self::Var(s) => write!(f, "{s}"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum Unop {
     Not,
+}
+
+impl fmt::Display for Unop {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Not => write!(f, "NOT"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -19,6 +40,17 @@ enum Binop {
     RShift,
 }
 
+impl fmt::Display for Binop {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::And => write!(f, "AND"),
+            Self::Or => write!(f, "OR"),
+            Self::LShift => write!(f, "LSHIFT"),
+            Self::RShift => write!(f, "RSHIFT"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Expression {
     Value(Value),
@@ -26,10 +58,26 @@ enum Expression {
     Binary(Value, Binop, Value),
 }
 
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Value(v) => write!(f, "{v}"),
+            Self::Unary(op, v) => write!(f, "{} {}", op, v),
+            Self::Binary(lhs, op, rhs) => write!(f, "{} {} {}", lhs, op, rhs),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Wiring {
     expression: Expression,
     output: String,
+}
+
+impl fmt::Display for Wiring {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -> {}", self.expression, self.output)
+    }
 }
 
 mod grammar {
@@ -98,8 +146,20 @@ mod grammar {
         }
     }
 
-    fn parse_wiring(i: &str) {
-        alt(());
+    pub fn parse_wiring(i: &str) -> IResult<&str, Wiring> {
+        map(
+            (
+                ws(parse_expression),
+                ws(tag("->")),
+                ws(map(alpha1, String::from)),
+                space0,
+            ),
+            |(e, _, name, _)| Wiring {
+                expression: e,
+                output: name,
+            },
+        )
+        .parse(i)
     }
 
     #[cfg(test)]
@@ -177,4 +237,15 @@ mod grammar {
     }
 }
 
-fn main() {}
+fn main() {
+    let input = include_str!("input.txt");
+    let wirings: HashMap<String, Wiring> = input
+        .lines()
+        .map(|line| {
+            grammar::parse_wiring(line)
+                .expect("Failed to parse wiring")
+                .1
+        })
+        .map(|wiring| (wiring.output.clone(), wiring))
+        .collect();
+}
