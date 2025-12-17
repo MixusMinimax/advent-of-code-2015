@@ -11,5 +11,10 @@ path = "d01/d01.rs"
 name = "d02"
 path = "d02/d02.rs"
 
+[[bin]]
+name = "d03"
+path = "d03/d03.rs"
+
 [dependencies]
 #nom = "8.0.0"
+vecmath = "1.0.0"
