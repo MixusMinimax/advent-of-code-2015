@@ -38,11 +38,21 @@ mod grammar {
     use nom::Parser;
     use nom::branch::alt;
     use nom::bytes::tag;
-    use nom::character::complete::{alpha1, digit1, space0, space1};
+    use nom::character::complete::{alpha1, digit1, space0};
     use nom::combinator::{map, map_res, not, peek, value, verify};
-    use nom::sequence::terminated;
+    use nom::error::ParseError;
+    use nom::sequence::{preceded, terminated};
 
     const RESERVED: &[&str] = &["AND", "OR", "LSHIFT", "RSHIFT", "NOT"];
+
+    pub fn ws<I, O, E: ParseError<I>, G>(inner: G) -> impl Parser<I, Output = O, Error = E>
+    where
+        G: Parser<I, Output = O, Error = E>,
+        I: nom::Input,
+        <I as nom::Input>::Item: nom::AsChar,
+    {
+        preceded(space0, inner)
+    }
 
     fn parse_unop(i: &str) -> IResult<&str, Unop> {
         terminated(value(Unop::Not, tag("NOT")), not(peek(alpha1))).parse(i)
@@ -76,17 +86,16 @@ mod grammar {
     }
 
     fn parse_expression(i: &str) -> IResult<&str, Expression> {
-        alt((
-            map((parse_unop, space1, parse_value), |(a, _, b)| {
-                Expression::Unary(a, b)
-            }),
-            map(
-                (parse_value, space1, parse_binop, space1, parse_value),
-                |(a, _, op, _, b)| Expression::Binary(a, op, b),
-            ),
-            map(parse_value, Expression::Value),
-        ))
-        .parse(space0(i)?.0)
+        if let Ok((i2, op)) = parse_unop(i) {
+            return ws(map(parse_value, |v| Expression::Unary(op, v))).parse(i2);
+        }
+        let (i, lhs) = parse_value(i)?;
+        if let Ok((i, op)) = ws(parse_binop).parse(i) {
+            let (i, rhs) = ws(parse_value).parse(i)?;
+            Ok((i, Expression::Binary(lhs, op, rhs)))
+        } else {
+            Ok((i, Expression::Value(lhs)))
+        }
     }
 
     fn parse_wiring(i: &str) {
@@ -147,7 +156,7 @@ mod grammar {
                 ))
             );
             assert_eq!(
-                parse_expression("  NOT   x  "),
+                parse_expression("NOT   x  "),
                 Ok((
                     "  ",
                     Expression::Unary(Unop::Not, Value::Var("x".to_string()))
@@ -159,7 +168,11 @@ mod grammar {
                     "",
                     Expression::Binary(Value::Lit(123), Binop::And, Value::Var("y".to_string()))
                 ))
-            )
+            );
+            assert_eq!(
+                parse_expression("123 "),
+                Ok((" ", Expression::Value(Value::Lit(123))))
+            );
         }
     }
 }
