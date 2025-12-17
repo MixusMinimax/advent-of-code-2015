@@ -23,7 +23,12 @@ path = "d04/d04.rs"
 name = "d05"
 path = "d05/d05.rs"
 
+[[bin]]
+name = "d06"
+path = "d06/d06.rs"
+
 [dependencies]
+anyhow = "1.0.100"
 #itertools = "0.14.0"
 #nom = "8.0.0"
 md-5 = "0.10.6"
