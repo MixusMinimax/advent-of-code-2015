@@ -1,37 +1,7 @@
+use aoc2015::inv_tsp;
 use itertools::Itertools;
-use std::cmp;
 use std::collections::HashMap;
 use std::str::FromStr;
-
-fn long_tsp(n: u16, dist: impl Fn(u16, u16) -> i32) -> i32 {
-    let mut g = HashMap::new();
-    for k in 0..n {
-        g.insert((1u64 << k, k), dist(0, k));
-    }
-
-    for s in 2..=n - 1 {
-        for sub in 0u64..(1u64 << n) {
-            if sub.count_ones() as u16 == s {
-                for k in 0..n {
-                    if ((1 << k) & sub) != 0 {
-                        let mut result = 0i32;
-                        for m in 0..n {
-                            if m != k && ((1 << m) & sub) != 0 {
-                                result = cmp::max(result, g[&(sub & !(1 << k), m)] + dist(m, k));
-                            }
-                        }
-                        g.insert((sub, k), result);
-                    }
-                }
-            }
-        }
-    }
-
-    (1..n)
-        .map(|k| g[&(((1u64 << n) - 1) & !1u64, k)] + dist(k, 0))
-        .max()
-        .unwrap()
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct Instruction(String, i32, String);
@@ -79,12 +49,12 @@ fn main() {
         let ib = name_to_index[ins.2.as_str()];
         matrix[idx(ia, ib)] = ins.1;
     }
-    let best_happiness = long_tsp(n as u16, |a, b| {
+    let best_happiness = inv_tsp(n as u16, |a, b| {
         matrix[idx(a as usize, b as usize)] + matrix[idx(b as usize, a as usize)]
     });
     println!("Part1: {}", best_happiness);
 
-    let best_happiness = long_tsp((n + 1) as u16, |a, b| {
+    let best_happiness = inv_tsp((n + 1) as u16, |a, b| {
         if a == 0 || b == 0 {
             0
         } else {

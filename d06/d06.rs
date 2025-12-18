@@ -1,3 +1,5 @@
+#![feature(assert_matches)]
+
 use anyhow::anyhow;
 use std::ops::{Index, IndexMut};
 use std::str::FromStr;
@@ -129,21 +131,22 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn test_parse_instruction() {
-        assert!(matches!("".parse(), Result::<Instruction, _>::Err(_)));
-        assert!(matches!(
+        assert_matches!("".parse(), Result::<Instruction, _>::Err(_));
+        assert_matches!(
             "turn on 0,0 through 999,999".parse(),
             Ok(Instruction::On([0, 0], [999, 999]))
-        ));
-        assert!(matches!(
+        );
+        assert_matches!(
             "toggle 0,0 through 999,0".parse(),
             Ok(Instruction::Toggle([0, 0], [999, 0]))
-        ));
-        assert!(matches!(
+        );
+        assert_matches!(
             "turn off 499,499 through 500,500".parse(),
-            Ok(Instruction::Toggle([499, 499], [500, 500]))
-        ));
+            Ok(Instruction::Off([499, 499], [500, 500]))
+        );
     }
 }

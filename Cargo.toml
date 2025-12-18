@@ -3,6 +3,10 @@ name = "advent-of-code-2015"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "aoc2015"
+path = "src/lib.rs"
+
 [[bin]]
 name = "d01"
 path = "d01/d01.rs"
