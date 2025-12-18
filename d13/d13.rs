@@ -83,6 +83,16 @@ fn main() {
         matrix[idx(a as usize, b as usize)] + matrix[idx(b as usize, a as usize)]
     });
     println!("Part1: {}", best_happiness);
+
+    let best_happiness = long_tsp((n + 1) as u16, |a, b| {
+        if a == 0 || b == 0 {
+            0
+        } else {
+            matrix[idx((a - 1) as usize, (b - 1) as usize)]
+                + matrix[idx((b - 1) as usize, (a - 1) as usize)]
+        }
+    });
+    println!("Part2: {}", best_happiness);
 }
 
 #[cfg(test)]
