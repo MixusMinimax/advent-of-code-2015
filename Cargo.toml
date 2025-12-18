@@ -47,12 +47,18 @@ path = "d10/d10.rs"
 name = "d11"
 path = "d11/d11.rs"
 
+[[bin]]
+name = "d12"
+path = "d12/d12.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 itertools = "0.14.0"
 nom = "8.0.0"
 md-5 = "0.10.6"
 vecmath = "1.0.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
 
 
 [profile.dev]
