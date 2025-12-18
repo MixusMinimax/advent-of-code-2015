@@ -31,12 +31,18 @@ path = "d06/d06.rs"
 name = "d07"
 path = "d07/d07.rs"
 
+[[bin]]
+name = "d08"
+path = "d08/d08.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 #itertools = "0.14.0"
 nom = "8.0.0"
 md-5 = "0.10.6"
 vecmath = "1.0.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
 
 
 [profile.dev]
