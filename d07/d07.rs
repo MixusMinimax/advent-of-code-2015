@@ -269,7 +269,7 @@ fn eval_expr<'a>(e: &'a Expression, values: &HashMap<&'a str, u16>) -> Result<u1
 
 fn eval_wirings<'a>(
     wirings: &'a HashMap<String, Wiring>,
-    mut values: HashMap<&'a str, u16>,
+    values: &mut HashMap<&'a str, u16>,
     goal: &'a str,
 ) -> Option<u16> {
     let mut evaluation_queue = VecDeque::from([goal]);
@@ -307,8 +307,8 @@ fn main() {
         })
         .map(|wiring| (wiring.output.clone(), wiring))
         .collect();
-    let a1 = eval_wirings(&wirings, HashMap::new(), "a").expect("could not eval a1");
-    let a2 = eval_wirings(&wirings, HashMap::from([("b", a1)]), "a").expect("could not eval a1");
+    let a1 = eval_wirings(&wirings, &mut HashMap::new(), "a").expect("a1");
+    let a2 = eval_wirings(&wirings, &mut HashMap::from([("b", a1)]), "a").expect("a2");
 
     println!("Par1: {a1}");
     println!("Par2: {a2}");
