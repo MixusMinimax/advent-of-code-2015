@@ -237,6 +237,36 @@ mod grammar {
     }
 }
 
+fn eval_val<'a>(v: &'a Value, values: &HashMap<&'a str, u16>) -> Result<u16, Vec<&'a str>> {
+    match v {
+        Value::Lit(i) => Ok(*i),
+        Value::Var(s) => {
+            if let Some(i) = values.get(s.as_str()) {
+                Ok(*i)
+            } else {
+                Err(vec![s.as_str()])
+            }
+        }
+    }
+}
+
+fn eval_expr<'a>(e: &'a Expression, values: &HashMap<&'a str, u16>) -> Result<u16, Vec<&'a str>> {
+    match e {
+        Expression::Value(v) => eval_val(v, values),
+        Expression::Unary(op, v) => eval_val(v, values).map(|i| match op {
+            Unop::Not => !i,
+        }),
+        Expression::Binary(l, op, r) => eval_val(l, values)
+            .and_then(|l| eval_val(r, values).map(|r| (l, r)))
+            .map(|(l, r)| match op {
+                Binop::And => l & r,
+                Binop::Or => l | r,
+                Binop::LShift => l << r,
+                Binop::RShift => l >> r,
+            }),
+    }
+}
+
 fn main() {
     let input = include_str!("input.txt");
     let wirings: HashMap<String, Wiring> = input
@@ -248,4 +278,57 @@ fn main() {
         })
         .map(|wiring| (wiring.output.clone(), wiring))
         .collect();
+    let mut values = HashMap::new();
+    let mut evaluation_queue = VecDeque::from(["a"]);
+    while let Some(&next) = evaluation_queue.front() {
+        if values.contains_key(next) {
+            evaluation_queue.pop_front();
+            continue;
+        }
+        let wiring = &wirings[next];
+        match eval_expr(&wiring.expression, &values) {
+            Ok(i) => {
+                println!("{next} evaluated to {i}");
+                values.insert(next, i);
+                evaluation_queue.pop_front();
+            }
+            Err(requirements) => {
+                println!("{next} requires {requirements:?}");
+                for r in requirements {
+                    evaluation_queue.push_front(r);
+                }
+            }
+        };
+    }
+
+    println!("Result: {}", values["a"]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_eval_expr_lit() {
+        let expr = Expression::Value(Value::Lit(123));
+        let values = HashMap::new();
+        let result = eval_expr(&expr, &values);
+        assert_eq!(result, Ok(123));
+    }
+
+    #[test]
+    fn test_eval_expr_var() {
+        let expr = Expression::Value(Value::Var("asd".to_string()));
+        let values = HashMap::from([("asd", 69)]);
+        let result = eval_expr(&expr, &values);
+        assert_eq!(result, Ok(69));
+    }
+
+    #[test]
+    fn test_eval_expr_var_notfound() {
+        let expr = Expression::Value(Value::Var("asd".to_string()));
+        let values = HashMap::new();
+        let result = eval_expr(&expr, &values);
+        assert_eq!(result, Err(vec!["asd"]));
+    }
 }
