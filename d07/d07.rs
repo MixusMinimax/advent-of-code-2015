@@ -279,7 +279,7 @@ fn eval_wirings<'a>(
             continue;
         }
         let wiring = &wirings[next];
-        match eval_expr(&wiring.expression, &values) {
+        match eval_expr(&wiring.expression, values) {
             Ok(i) => {
                 println!("{next} evaluated to {i}");
                 values.insert(next, i);
