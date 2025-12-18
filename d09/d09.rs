@@ -32,6 +32,36 @@ fn tsp(n: u16, dist: impl Fn(u16, u16) -> u32) -> u32 {
         .unwrap()
 }
 
+fn long_tsp(n: u16, dist: impl Fn(u16, u16) -> u32) -> u32 {
+    let mut g = HashMap::new();
+    for k in 0..n {
+        g.insert((1u64 << k, k), dist(0, k));
+    }
+
+    for s in 2..=n - 1 {
+        for sub in 0u64..(1u64 << n) {
+            if sub.count_ones() as u16 == s {
+                for k in 0..n {
+                    if ((1 << k) & sub) != 0 {
+                        let mut result = 0u32;
+                        for m in 0..n {
+                            if m != k && ((1 << m) & sub) != 0 {
+                                result = cmp::max(result, g[&(sub & !(1 << k), m)] + dist(m, k));
+                            }
+                        }
+                        g.insert((sub, k), result);
+                    }
+                }
+            }
+        }
+    }
+
+    (1..n)
+        .map(|k| g[&(((1u64 << n) - 1) & !1u64, k)] + dist(k, 0))
+        .max()
+        .unwrap()
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Edge(String, String, u32);
 
@@ -93,8 +123,10 @@ fn main() {
     println!("{:?}", edge_weights);
 
     let shortest = tsp(n as u16, |a, b| edge_weights[idx(a as usize, b as usize)]);
-
     println!("Shortest: {}", shortest);
+
+    let longest = long_tsp(n as u16, |a, b| edge_weights[idx(a as usize, b as usize)]);
+    println!("Longest: {}", longest);
 }
 
 #[cfg(test)]
