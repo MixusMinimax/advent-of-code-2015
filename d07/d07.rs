@@ -267,19 +267,12 @@ fn eval_expr<'a>(e: &'a Expression, values: &HashMap<&'a str, u16>) -> Result<u1
     }
 }
 
-fn main() {
-    let input = include_str!("input.txt");
-    let wirings: HashMap<String, Wiring> = input
-        .lines()
-        .map(|line| {
-            grammar::parse_wiring(line)
-                .expect("Failed to parse wiring")
-                .1
-        })
-        .map(|wiring| (wiring.output.clone(), wiring))
-        .collect();
-    let mut values = HashMap::new();
-    let mut evaluation_queue = VecDeque::from(["a"]);
+fn eval_wirings<'a>(
+    wirings: &'a HashMap<String, Wiring>,
+    mut values: HashMap<&'a str, u16>,
+    goal: &'a str,
+) -> Option<u16> {
+    let mut evaluation_queue = VecDeque::from([goal]);
     while let Some(&next) = evaluation_queue.front() {
         if values.contains_key(next) {
             evaluation_queue.pop_front();
@@ -300,8 +293,25 @@ fn main() {
             }
         };
     }
+    values.get(goal).copied()
+}
 
-    println!("Result: {}", values["a"]);
+fn main() {
+    let input = include_str!("input.txt");
+    let wirings: HashMap<String, Wiring> = input
+        .lines()
+        .map(|line| {
+            grammar::parse_wiring(line)
+                .expect("Failed to parse wiring")
+                .1
+        })
+        .map(|wiring| (wiring.output.clone(), wiring))
+        .collect();
+    let a1 = eval_wirings(&wirings, HashMap::new(), "a").expect("could not eval a1");
+    let a2 = eval_wirings(&wirings, HashMap::from([("b", a1)]), "a").expect("could not eval a1");
+
+    println!("Par1: {a1}");
+    println!("Par2: {a2}");
 }
 
 #[cfg(test)]
