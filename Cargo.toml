@@ -39,9 +39,13 @@ path = "d08/d08.rs"
 name = "d09"
 path = "d09/d09.rs"
 
+[[bin]]
+name = "d10"
+path = "d10/d10.rs"
+
 [dependencies]
 anyhow = "1.0.100"
-#itertools = "0.14.0"
+itertools = "0.14.0"
 nom = "8.0.0"
 md-5 = "0.10.6"
 vecmath = "1.0.0"
