@@ -106,33 +106,20 @@ fn main() {
     for _ in 0..SECONDS {
         let max_dist = reindeer
             .iter_mut()
-            .map(
-                |ReindeerData {
-                     reindeer: r,
-                     state,
-                     distance_covered,
-                     ..
-                 }| {
-                    if let ReindeerState::Flying(_) = state {
-                        *distance_covered += r.speed;
-                    }
-                    *state = advance_reindeer(r, state);
-                    *distance_covered
-                },
-            )
+            .map(|data| {
+                if let ReindeerState::Flying(_) = data.state {
+                    data.distance_covered += data.reindeer.speed;
+                }
+                data.state = advance_reindeer(&data.reindeer, &data.state);
+                data.distance_covered
+            })
             .max()
             .unwrap();
-        reindeer.iter_mut().for_each(
-            |ReindeerData {
-                 distance_covered,
-                 points,
-                 ..
-             }| {
-                if *distance_covered == max_dist {
-                    *points += 1;
-                }
-            },
-        );
+        reindeer.iter_mut().for_each(|data| {
+            if data.distance_covered == max_dist {
+                data.points += 1;
+            }
+        });
     }
     let winner = reindeer.iter().map(|data| data.points).max().unwrap();
     println!("Part2: {}", winner);
