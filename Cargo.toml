@@ -59,6 +59,10 @@ path = "d12/d12.rs"
 name = "d13"
 path = "d13/d13.rs"
 
+[[bin]]
+name = "d14"
+path = "d14/d14.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 itertools = "0.14.0"
