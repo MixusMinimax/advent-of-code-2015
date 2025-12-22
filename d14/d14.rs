@@ -13,6 +13,20 @@ struct Reindeer {
     rest_seconds: i32,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ReindeerState {
+    Flying(i32),
+    Resting(i32),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ReindeerData {
+    reindeer: Reindeer,
+    state: ReindeerState,
+    distance_covered: i32,
+    points: i32,
+}
+
 impl FromStr for Reindeer {
     type Err = nom::Err<nom::error::Error<String>>;
 
@@ -51,6 +65,16 @@ fn reindeer_distance(reindeer: &Reindeer, seconds: i32) -> i32 {
             + cmp::min(remaining_time, reindeer.flight_seconds))
 }
 
+fn advance_reindeer(reindeer: &Reindeer, state: &ReindeerState) -> ReindeerState {
+    use ReindeerState::*;
+    match *state {
+        Flying(time) if time >= reindeer.flight_seconds - 1 => Resting(0),
+        Flying(time) => Flying(time + 1),
+        Resting(time) if time >= reindeer.rest_seconds - 1 => Flying(0),
+        Resting(time) => Resting(time + 1),
+    }
+}
+
 fn main() {
     let input = include_str!("input.txt");
     let reindeer: Vec<Reindeer> = input
@@ -58,12 +82,60 @@ fn main() {
         .map(str::parse)
         .collect::<Result<_, _>>()
         .unwrap();
+
+    const SECONDS: i32 = 2503;
+
+    // part 1
     let max_dist = reindeer
-        .into_iter()
-        .map(|r| reindeer_distance(&r, 2503))
+        .iter()
+        .map(|r| reindeer_distance(r, SECONDS))
         .max()
         .unwrap();
     println!("Part1: {}", max_dist);
+
+    // part 2
+    let mut reindeer: Vec<_> = reindeer
+        .into_iter()
+        .map(|r| ReindeerData {
+            reindeer: r,
+            state: ReindeerState::Flying(0),
+            distance_covered: 0i32,
+            points: 0i32,
+        })
+        .collect();
+    for _ in 0..SECONDS {
+        let max_dist = reindeer
+            .iter_mut()
+            .map(
+                |ReindeerData {
+                     reindeer: r,
+                     state,
+                     distance_covered,
+                     ..
+                 }| {
+                    if let ReindeerState::Flying(_) = state {
+                        *distance_covered += r.speed;
+                    }
+                    *state = advance_reindeer(r, state);
+                    *distance_covered
+                },
+            )
+            .max()
+            .unwrap();
+        reindeer.iter_mut().for_each(
+            |ReindeerData {
+                 distance_covered,
+                 points,
+                 ..
+             }| {
+                if *distance_covered == max_dist {
+                    *points += 1;
+                }
+            },
+        );
+    }
+    let winner = reindeer.iter().map(|data| data.points).max().unwrap();
+    println!("Part2: {}", winner);
 }
 
 #[cfg(test)]
@@ -97,5 +169,22 @@ mod tests {
             ),
             1120
         );
+    }
+
+    #[test]
+    fn test_advance_reindeer() {
+        use ReindeerState::*;
+        let comet = Reindeer {
+            name: "Comet".to_string(),
+            speed: 14,
+            flight_seconds: 10,
+            rest_seconds: 127,
+        };
+        assert_eq!(advance_reindeer(&comet, &Flying(0)), Flying(1));
+        assert_eq!(advance_reindeer(&comet, &Flying(8)), Flying(9));
+        assert_eq!(advance_reindeer(&comet, &Flying(9)), Resting(0));
+        assert_eq!(advance_reindeer(&comet, &Resting(0)), Resting(1));
+        assert_eq!(advance_reindeer(&comet, &Resting(125)), Resting(126));
+        assert_eq!(advance_reindeer(&comet, &Resting(126)), Flying(0));
     }
 }
