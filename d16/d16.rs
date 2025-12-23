@@ -73,7 +73,7 @@ fn main() {
         .filter(|sue| {
             sue.properties
                 .iter()
-                .all(|(prop, v)| expected.get(prop.as_str()).copied() == Some(*v))
+                .all(|(prop, v)| expected[prop.as_str()] == *v)
         })
         .exactly_one()
         .unwrap();
@@ -82,14 +82,13 @@ fn main() {
     let sue = sues
         .iter()
         .filter(|sue| {
-            sue.properties.iter().all(|(prop, &v)| {
-                match (prop.as_str(), expected.get(prop.as_str()).copied()) {
-                    ("cats" | "trees", Some(expected)) => v > expected,
-                    ("pomeranians" | "goldfish", Some(expected)) => v < expected,
-                    (_, Some(expected)) => v == expected,
-                    _ => true,
-                }
-            })
+            sue.properties.iter().all(
+                |(prop, &v)| match (prop.as_str(), expected[prop.as_str()]) {
+                    ("cats" | "trees", expected) => v > expected,
+                    ("pomeranians" | "goldfish", expected) => v < expected,
+                    (_, expected) => v == expected,
+                },
+            )
         })
         .exactly_one()
         .unwrap();
