@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use nom::Parser;
 use nom::bytes::tag;
 use nom::character::complete::{alphanumeric1, char, space0};
@@ -47,7 +48,53 @@ impl FromStr for Sue {
     }
 }
 
-fn main() {}
+fn main() {
+    let input = include_str!("input.txt");
+    let sues: Vec<Sue> = input
+        .lines()
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .unwrap();
+    let expected = HashMap::from([
+        ("children", 3),
+        ("cats", 7),
+        ("samoyeds", 2),
+        ("pomeranians", 3),
+        ("akitas", 0),
+        ("vizslas", 0),
+        ("goldfish", 5),
+        ("trees", 3),
+        ("cars", 2),
+        ("perfumes", 1),
+    ]);
+
+    let sue = sues
+        .iter()
+        .filter(|sue| {
+            sue.properties
+                .iter()
+                .all(|(prop, v)| expected.get(prop.as_str()).copied() == Some(*v))
+        })
+        .exactly_one()
+        .unwrap();
+    println!("Part1: {}", sue.number);
+
+    let sue = sues
+        .iter()
+        .filter(|sue| {
+            sue.properties.iter().all(|(prop, &v)| {
+                match (prop.as_str(), expected.get(prop.as_str()).copied()) {
+                    ("cats" | "trees", Some(expected)) => v > expected,
+                    ("pomeranians" | "goldfish", Some(expected)) => v < expected,
+                    (_, Some(expected)) => v == expected,
+                    _ => true,
+                }
+            })
+        })
+        .exactly_one()
+        .unwrap();
+    println!("Part2: {}", sue.number);
+}
 
 #[cfg(test)]
 mod tests {
