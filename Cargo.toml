@@ -71,6 +71,10 @@ path = "d15/d15.rs"
 name = "d16"
 path = "d16/d16.rs"
 
+[[bin]]
+name = "d17"
+path = "d17/d17.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 itertools = "0.14.0"
@@ -79,7 +83,7 @@ md-5 = "0.10.6"
 vecmath = "1.0.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
-
+#good_lp = { version = "1.14.2", default-features = false, features = ["microlp"] }
 
 [profile.dev]
 opt-level = 0
