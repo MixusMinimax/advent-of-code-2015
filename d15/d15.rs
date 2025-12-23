@@ -101,6 +101,12 @@ fn cookie_score(ingredients: &[Ingredient], amounts: &[u32]) -> i64 {
     capacity as i64 * durability as i64 * flavor as i64 * texture as i64
 }
 
+fn cookie_calories(ingredients: &[Ingredient], amounts: &[u32]) -> i32 {
+    zip(ingredients, amounts)
+        .map(|(i, &a)| i.calories * a as i32)
+        .sum()
+}
+
 fn main() {
     let input = include_str!("input.txt");
     let ingredients: Vec<Ingredient> = input
@@ -108,16 +114,45 @@ fn main() {
         .map(str::parse)
         .collect::<Result<_, _>>()
         .unwrap();
+
     let best_score = compositions(ingredients.len() as u32, 100)
         .map(|c| cookie_score(&ingredients, &c))
         .max()
         .unwrap();
     println!("Part1: {}", best_score);
+
+    let best_score = compositions(ingredients.len() as u32, 100)
+        .filter(|c| cookie_calories(&ingredients, c) == 500)
+        .map(|c| cookie_score(&ingredients, &c))
+        .max()
+        .unwrap();
+    println!("Part2: {}", best_score);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_ingredients() -> Vec<Ingredient> {
+        vec![
+            Ingredient {
+                name: "Butterscotch".to_string(),
+                capacity: -1,
+                durability: -2,
+                flavor: 6,
+                texture: 3,
+                calories: 8,
+            },
+            Ingredient {
+                name: "Cinnamon".to_string(),
+                capacity: 2,
+                durability: 3,
+                flavor: -2,
+                texture: -1,
+                calories: 3,
+            },
+        ]
+    }
 
     #[test]
     fn test_parse() {
@@ -151,25 +186,13 @@ mod tests {
 
     #[test]
     fn test_cookie_score() {
-        let ingredients = vec![
-            Ingredient {
-                name: "Butterscotch".to_string(),
-                capacity: -1,
-                durability: -2,
-                flavor: 6,
-                texture: 3,
-                calories: 8,
-            },
-            Ingredient {
-                name: "Cinnamon".to_string(),
-                capacity: 2,
-                durability: 3,
-                flavor: -2,
-                texture: -1,
-                calories: 3,
-            },
-        ];
-        let score = cookie_score(&ingredients, &[44, 56]);
+        let score = cookie_score(&sample_ingredients(), &[44, 56]);
         assert_eq!(score, 62842880);
+    }
+
+    #[test]
+    fn test_calories() {
+        let calories = cookie_calories(&sample_ingredients(), &[40, 60]);
+        assert_eq!(calories, 500);
     }
 }
