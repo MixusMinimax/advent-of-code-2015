@@ -73,7 +73,7 @@ fn main() {
         .filter(|sue| {
             sue.properties
                 .iter()
-                .all(|(prop, v)| expected[prop.as_str()] == *v)
+                .all(|(prop, &v)| expected[prop.as_str()] == v)
         })
         .exactly_one()
         .unwrap();
