@@ -2,6 +2,7 @@ use nom::Parser;
 use nom::bytes::complete::tag;
 use nom::character::complete::alpha1;
 use nom::combinator::{eof, map};
+use std::collections::HashSet;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -47,9 +48,22 @@ fn parse_input(
     Err(nom::Err::Incomplete(nom::Needed::Unknown))
 }
 
+fn apply_replacements(molecule: &str, replacements: &[Replacement]) -> HashSet<String> {
+    let mut result = HashSet::new();
+    for replacement in replacements {
+        for (index, _) in molecule.match_indices(&replacement.from) {
+            let mut s = molecule.to_string();
+            s.replace_range(index..index + replacement.from.len(), &replacement.to);
+            result.insert(s);
+        }
+    }
+    result
+}
+
 fn main() {
     let (replacements, molecule) = parse_input(include_str!("input.txt")).unwrap();
-    println!("{:?}, {}", replacements, molecule);
+    let result = apply_replacements(&molecule, &replacements);
+    println!("Part1: {}", result.len());
 }
 
 #[cfg(test)]
@@ -89,5 +103,13 @@ mod tests {
                 "HOH".to_string()
             ))
         );
+    }
+
+    #[test]
+    fn test_apply_replacements() {
+        let (replacements, molecule) = parse_input("H => HO\nH => OH\nO => HH\n\nHOH").unwrap();
+        let expected = HashSet::from(["HOOH", "HOHO", "OHOH", "HHHH"].map(str::to_string));
+        let actual = apply_replacements(&molecule, &replacements);
+        assert_eq!(actual, expected);
     }
 }
