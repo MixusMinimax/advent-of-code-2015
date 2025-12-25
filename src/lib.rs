@@ -1,5 +1,5 @@
-use std::cmp;
 use std::collections::HashMap;
+use std::{cmp, fmt};
 
 pub fn tsp(n: u16, dist: impl Fn(u16, u16) -> i32) -> i32 {
     let mut g = HashMap::new();
@@ -36,23 +36,38 @@ pub fn inv_tsp(n: u16, dist: impl Fn(u16, u16) -> i32) -> i32 {
     -tsp(n, |a, b| -dist(a, b))
 }
 
-pub struct CompositionsGenerator {
-    stack: Vec<(u32, u32, Vec<u32>)>,
+pub struct CompositionsGenerator<I> {
+    stack: Vec<(I, I, Vec<I>)>,
+    partial_no_zeroes: bool,
 }
 
-impl Iterator for CompositionsGenerator {
-    type Item = Vec<u32>;
+impl<I> Iterator for CompositionsGenerator<I>
+where
+    I: Copy,
+    I: std::ops::Add<Output = I>,
+    I: PartialEq<I>,
+    I: std::ops::Sub<Output = I>,
+    std::ops::Range<I>: Iterator<Item = I>,
+    I: TryFrom<i32>,
+    <I as TryFrom<i32>>::Error: fmt::Debug,
+{
+    type Item = Vec<I>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let zero = I::try_from(0).unwrap();
+        let one = I::try_from(1).unwrap();
         while let Some((vars_left, remaining, mut current)) = self.stack.pop() {
-            if vars_left == 1 {
+            if vars_left == one && (!self.partial_no_zeroes || remaining != zero) {
                 current.push(remaining);
                 return Some(current);
             } else {
-                for i in 0..remaining + 1 {
+                for i in (if self.partial_no_zeroes { one } else { zero })..remaining + one {
                     let mut current = current.clone();
                     current.push(i);
-                    self.stack.push((vars_left - 1, remaining - i, current))
+                    self.stack.push((vars_left - one, remaining - i, current))
+                }
+                if self.partial_no_zeroes && remaining == zero {
+                    return Some(current);
                 }
             }
         }
@@ -60,21 +75,53 @@ impl Iterator for CompositionsGenerator {
     }
 }
 
-impl CompositionsGenerator {
-    pub fn new(n: u32, total: u32) -> Self {
+impl<I> CompositionsGenerator<I> {
+    pub fn new(n: I, total: I) -> Self {
         CompositionsGenerator {
             stack: vec![(n, total, vec![])],
+            partial_no_zeroes: false,
+        }
+    }
+
+    pub fn new_partial(n: I, total: I) -> Self {
+        CompositionsGenerator {
+            stack: vec![(n, total, vec![])],
+            partial_no_zeroes: true,
         }
     }
 }
 
-pub fn compositions(n: u32, total: u32) -> CompositionsGenerator {
-    CompositionsGenerator::new(n, total)
+pub fn compositions<I>(n: I, total: I) -> CompositionsGenerator<I>
+where
+    I: Copy,
+    I: std::ops::Add<Output = I>,
+    I: PartialEq<I>,
+    I: std::ops::Sub<Output = I>,
+    std::ops::Range<I>: Iterator<Item = I>,
+    I: TryFrom<i32>,
+    <I as TryFrom<i32>>::Error: fmt::Debug,
+{
+    CompositionsGenerator::<I>::new(n, total)
+}
+
+pub fn partial_compositions<I>(n: I, total: I) -> CompositionsGenerator<I>
+where
+    I: Copy,
+    I: std::ops::Add<Output = I>,
+    I: PartialEq<I>,
+    I: std::ops::Sub<Output = I>,
+    std::ops::Range<I>: Iterator<Item = I>,
+    I: TryFrom<i32>,
+    <I as TryFrom<i32>>::Error: fmt::Debug,
+{
+    CompositionsGenerator::<I>::new_partial(n, total)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use itertools::Itertools;
+    use std::collections::HashSet;
 
     #[test]
     fn test_compositions() {
@@ -102,5 +149,29 @@ mod tests {
         let generated: Vec<_> = CompositionsGenerator::new(4, 100).collect();
         assert_eq!(direct, generated);
         assert_eq!(generated.len(), 176851);
+    }
+
+    #[test]
+    fn test_partial_compositions() {
+        let expected = HashSet::from(
+            [
+                &[6] as &[i32],
+                &[1, 5],
+                &[2, 4],
+                &[3, 3],
+                &[1, 1, 4],
+                &[1, 2, 3],
+                &[2, 2, 2],
+                &[1, 1, 1, 3],
+                &[1, 1, 2, 2],
+                &[1, 1, 1, 1, 2],
+                &[1, 1, 1, 1, 1, 1],
+            ]
+            .map(|v| v.iter().copied().sorted().join("+")),
+        );
+        let actual = partial_compositions(6, 6)
+            .map(|v| v.iter().copied().sorted().join("+"))
+            .collect::<HashSet<_>>();
+        assert_eq!(actual, expected);
     }
 }
