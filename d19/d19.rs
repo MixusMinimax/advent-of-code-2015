@@ -2,7 +2,7 @@ use nom::Parser;
 use nom::bytes::complete::tag;
 use nom::character::complete::alpha1;
 use nom::combinator::{eof, map};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -60,10 +60,85 @@ fn apply_replacements(molecule: &str, replacements: &[Replacement]) -> HashSet<S
     result
 }
 
+fn apply_replacements_verbose(
+    molecule: &str,
+    replacements: &[Replacement],
+) -> Vec<(String, usize, Replacement)> {
+    let mut result = Vec::new();
+    for replacement in replacements {
+        for (index, _) in molecule.match_indices(&replacement.from) {
+            let mut s = molecule.to_string();
+            s.replace_range(index..index + replacement.from.len(), &replacement.to);
+            result.push((s, index, replacement.clone()));
+        }
+    }
+    result
+}
+
+fn synthesize(
+    molecule: &str,
+    goal: &str,
+    replacements: &[Replacement],
+) -> Result<Vec<(String, usize, Replacement)>, String> {
+    // we're gonna pathfind from the molecule to 'e' backwards.
+    let replacements: Vec<_> = replacements
+        .iter()
+        .map(|Replacement { from, to }| Replacement {
+            from: to.clone(),
+            to: from.clone(),
+        })
+        .collect();
+
+    let h = |a: &str| strsim::levenshtein(a, goal) as i64;
+
+    let mut open_set = HashSet::from([molecule.to_string()]);
+    let mut came_from = HashMap::<_, (String, usize, Replacement)>::new();
+    let mut g_score = HashMap::from([(molecule.to_string(), 0i64)]);
+    let mut f_score = HashMap::from([(molecule.to_string(), h(molecule))]);
+
+    while let Some(current) = open_set
+        .iter()
+        .min_by_key(|s| f_score.get(s.as_str()).copied().unwrap_or(i64::MAX))
+    {
+        if current == goal {
+            let mut total_path = Vec::new();
+            let mut current = current;
+            while came_from.contains_key(current) {
+                let prev = came_from.get(current).unwrap();
+                current = &prev.0;
+                total_path.push(prev.clone());
+            }
+            return Ok(total_path
+                .into_iter()
+                .map(|(s, i, Replacement { from, to })| (s, i, Replacement { from: to, to: from }))
+                .collect());
+        }
+
+        let current = current.clone();
+        open_set.remove(&current);
+
+        for (neighbor, index, replacement) in apply_replacements_verbose(&current, &replacements) {
+            let tentative_g_score = g_score.get(&current).copied().unwrap_or(i64::MAX);
+            if tentative_g_score < g_score.get(&neighbor).copied().unwrap_or(i64::MAX) {
+                came_from.insert(neighbor.clone(), (current.clone(), index, replacement));
+                g_score.insert(neighbor.clone(), tentative_g_score);
+                f_score.insert(neighbor.clone(), tentative_g_score + h(&neighbor));
+                open_set.insert(neighbor);
+            }
+        }
+    }
+
+    Err("Didn't work".to_string())
+}
+
 fn main() {
     let (replacements, molecule) = parse_input(include_str!("input.txt")).unwrap();
+
     let result = apply_replacements(&molecule, &replacements);
     println!("Part1: {}", result.len());
+
+    let result = synthesize(&molecule, "e", &replacements).unwrap();
+    println!("Part2: {}", result.len());
 }
 
 #[cfg(test)]
