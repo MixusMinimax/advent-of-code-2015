@@ -91,6 +91,10 @@ path = "d20/d20.rs"
 name = "d21"
 path = "d21/d21.rs"
 
+[[bin]]
+name = "d22"
+path = "d22/d22.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 indicatif = "0.18.3"
@@ -101,6 +105,7 @@ nom = "8.0.0"
 regex = "1.12.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
+serde_yaml = "0.9.33"
 strsim = { version = "0.11.1" }
 vecmath = "1.0.0"
 #good_lp = { version = "1.14.2", default-features = false, features = ["microlp"] }
