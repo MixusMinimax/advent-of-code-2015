@@ -18,11 +18,11 @@ impl error::Error for NoPathFound {}
 /// reverse it twice in that case.
 pub fn a_star_rev<Node, Edge, Neighbors>(
     start: &Node,
-    goal: &Node,
+    is_goal: impl Fn(&Node) -> bool,
     get_neighbors: impl Fn(&Node) -> Neighbors,
     heuristic: impl Fn(&Node) -> i64,
     distance: impl Fn(&Node, &Edge, &Node) -> i64,
-) -> Result<Vec<(Node, Edge)>, NoPathFound>
+) -> Result<(Vec<(Node, Edge)>, Node), NoPathFound>
 where
     Node: Clone + Eq + Hash,
     Edge: Clone,
@@ -37,15 +37,16 @@ where
         .iter()
         .min_by_key(|&s| f_score.get(s).copied().unwrap_or(i64::MAX))
     {
-        if current == goal {
+        if is_goal(current) {
             let mut total_path = Vec::new();
+            let goal = current.clone();
             let mut current = current;
             while came_from.contains_key(current) {
                 let prev = came_from.get(current).unwrap();
                 current = &prev.0;
                 total_path.push(prev.clone());
             }
-            return Ok(total_path);
+            return Ok((total_path, goal));
         }
 
         let current = current.clone();
@@ -94,12 +95,13 @@ mod tests {
         let goal = 2;
         let result = a_star_rev(
             &start,
-            &goal,
+            |n| *n == goal,
             |a| neighbors[*a].iter().map(|b| (*b, ())).collect::<Vec<_>>(),
             |a| vecmath::vec2_len(vecmath::vec2_sub(points[*a], points[goal])) as i64,
             |a, _, b| vecmath::vec2_len(vecmath::vec2_sub(points[*a], points[*b])) as i64,
         )
-        .unwrap();
+        .unwrap()
+        .0;
         let path: Vec<usize> = result.iter().rev().map(|(n, _)| *n).chain([goal]).collect();
         assert_eq!(path, vec![0, 5, 2]);
     }

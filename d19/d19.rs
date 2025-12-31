@@ -145,7 +145,7 @@ fn synthesize_2<'r>(
 ) -> Result<Vec<(String, usize, &'r Replacement)>, String> {
     a_star_rev(
         &molecule.to_string(),
-        &start.to_string(),
+        |n| n == start,
         |current| {
             apply_replacements_reverse_verbose(current, replacements)
                 .into_iter()
@@ -154,7 +154,7 @@ fn synthesize_2<'r>(
         |a| strsim::levenshtein(a, start) as i64,
         |_, _, _| 1,
     )
-    .map(|path| path.into_iter().map(|(m, (i, r))| (m, i, r)).collect())
+    .map(|path| path.0.into_iter().map(|(m, (i, r))| (m, i, r)).collect())
     .map_err(|e| e.to_string())
 }
 
