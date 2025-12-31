@@ -1,3 +1,5 @@
+pub mod graph;
+
 use std::collections::HashMap;
 use std::{cmp, fmt};
 

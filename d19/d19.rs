@@ -1,3 +1,4 @@
+use aoc2015::graph::a_star_rev;
 use nom::Parser;
 use nom::bytes::complete::tag;
 use nom::character::complete::alpha1;
@@ -86,10 +87,10 @@ fn apply_replacements_reverse_verbose<'r>(
 
 fn synthesize<'r>(
     molecule: &str,
-    goal: &str,
+    start: &str,
     replacements: &'r [Replacement],
 ) -> Result<Vec<(String, usize, &'r Replacement)>, String> {
-    let h = |a: &str| strsim::levenshtein(a, goal) as i64;
+    let h = |a: &str| strsim::levenshtein(a, start) as i64;
 
     let mut open_set = HashSet::from([molecule.to_string()]);
     let mut came_from = HashMap::<_, (String, usize, &'r Replacement)>::new();
@@ -100,7 +101,7 @@ fn synthesize<'r>(
         .iter()
         .min_by_key(|s| f_score.get(s.as_str()).copied().unwrap_or(i64::MAX))
     {
-        if current == goal {
+        if current == start {
             let mut total_path = Vec::new();
             let mut current = current;
             while came_from.contains_key(current) {
@@ -128,6 +129,32 @@ fn synthesize<'r>(
     }
 
     Err("Didn't work".to_string())
+}
+
+/// We can't check for equality with [synthesize], because the result seems to be different every
+/// time even within the same function. I'm guessing this because of the iteration over [HashSet],
+/// and [Iterator::min_by_key]. If there are multiple elements with the same `f_score`,
+/// undeterministic behavior of the set's allocation would result in different paths chosen.
+/// However, the length of the path seems to be consistent, meaning that the algorithm correctly
+/// returns one of the equally optimal solutions.
+#[allow(dead_code)]
+fn synthesize_2<'r>(
+    molecule: &str,
+    start: &str,
+    replacements: &'r [Replacement],
+) -> Result<Vec<(String, usize, &'r Replacement)>, String> {
+    a_star_rev(
+        &molecule.to_string(),
+        &start.to_string(),
+        |current| {
+            apply_replacements_reverse_verbose(current, replacements)
+                .into_iter()
+                .map(|(m, i, r)| (m, (i, r)))
+        },
+        |a| strsim::levenshtein(a, start) as i64,
+    )
+    .map(|path| path.into_iter().map(|(m, (i, r))| (m, i, r)).collect())
+    .map_err(|e| e.to_string())
 }
 
 fn main() {
@@ -192,5 +219,29 @@ mod tests {
         let expected = HashSet::from(["HOOH", "HOHO", "OHOH", "HHHH"].map(str::to_string));
         let actual = apply_replacements(&molecule, &replacements);
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_synthesize_a() {
+        let (replacements, input) =
+            parse_input("e => H\ne => O\nH => HO\nH => OH\nO => HH\n\nHOH\n").unwrap();
+        let result1 = synthesize(&input, "e", &replacements).unwrap();
+        let result2 = synthesize_2(&input, "e", &replacements).unwrap();
+        assert_eq!(result1.len(), 3);
+        assert_eq!(result2.len(), 3);
+        assert_eq!(result1.last().unwrap().0, "HOH");
+        assert_eq!(result2.last().unwrap().0, "HOH");
+    }
+
+    #[test]
+    fn test_synthesize_b() {
+        let (replacements, input) =
+            parse_input("e => H\ne => O\nH => HO\nH => OH\nO => HH\n\nHOHOHO\n").unwrap();
+        let result1 = synthesize(&input, "e", &replacements).unwrap();
+        let result2 = synthesize_2(&input, "e", &replacements).unwrap();
+        assert_eq!(result1.len(), 6);
+        assert_eq!(result2.len(), 6);
+        assert_eq!(result1.last().unwrap().0, "HOHOHO");
+        assert_eq!(result2.last().unwrap().0, "HOHOHO");
     }
 }
