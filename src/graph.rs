@@ -21,10 +21,11 @@ pub fn a_star_rev<Node, Edge, Neighbors>(
     goal: &Node,
     get_neighbors: impl Fn(&Node) -> Neighbors,
     heuristic: impl Fn(&Node) -> i64,
+    distance: impl Fn(&Node, &Edge, &Node) -> i64,
 ) -> Result<Vec<(Node, Edge)>, NoPathFound>
 where
     Node: Clone + Eq + Hash,
-    Edge: Clone + Copy,
+    Edge: Clone,
     Neighbors: IntoIterator<Item = (Node, Edge)>,
 {
     let mut open_set = HashSet::from([start.clone()]);
@@ -51,7 +52,10 @@ where
         open_set.remove(&current);
 
         for (neighbor, edge) in get_neighbors(&current) {
-            let tentative_g_score = g_score.get(&current).copied().unwrap_or(i64::MAX);
+            let tentative_g_score = g_score
+                .get(&current)
+                .map(|s| *s + distance(&current, &edge, &neighbor))
+                .unwrap_or(i64::MAX);
             if tentative_g_score < g_score.get(&neighbor).copied().unwrap_or(i64::MAX) {
                 came_from.insert(neighbor.clone(), (current.clone(), edge.clone()));
                 g_score.insert(neighbor.clone(), tentative_g_score);
@@ -62,4 +66,41 @@ where
     }
 
     Err(NoPathFound)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_a_star() {
+        let points = [
+            [3.4, 2.1],
+            [5.0, 4.0],
+            [9.0, 6.0],
+            [4.0, 7.0],
+            [8.0, 1.0],
+            [7.0, 2.0],
+        ];
+        let neighbors: [&[_]; _] = [
+            &[1, 5],    // 0
+            &[0, 3],    // 1
+            &[4, 5, 3], // 2
+            &[1, 2],    // 3
+            &[2, 5],    // 4
+            &[0, 2, 4], // 5
+        ];
+        let start = 0;
+        let goal = 2;
+        let result = a_star_rev(
+            &start,
+            &goal,
+            |a| neighbors[*a].iter().map(|b| (*b, ())).collect::<Vec<_>>(),
+            |a| vecmath::vec2_len(vecmath::vec2_sub(points[*a], points[goal])) as i64,
+            |a, _, b| vecmath::vec2_len(vecmath::vec2_sub(points[*a], points[*b])) as i64,
+        )
+        .unwrap();
+        let path: Vec<usize> = result.iter().rev().map(|(n, _)| *n).chain([goal]).collect();
+        assert_eq!(path, vec![0, 5, 2]);
+    }
 }

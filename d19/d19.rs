@@ -118,7 +118,7 @@ fn synthesize<'r>(
         for (neighbor, index, replacement) in
             apply_replacements_reverse_verbose(&current, replacements)
         {
-            let tentative_g_score = g_score.get(&current).copied().unwrap_or(i64::MAX);
+            let tentative_g_score = g_score.get(&current).map(|s| *s + 1).unwrap_or(i64::MAX);
             if tentative_g_score < g_score.get(&neighbor).copied().unwrap_or(i64::MAX) {
                 came_from.insert(neighbor.clone(), (current.clone(), index, replacement));
                 g_score.insert(neighbor.clone(), tentative_g_score);
@@ -152,6 +152,7 @@ fn synthesize_2<'r>(
                 .map(|(m, i, r)| (m, (i, r)))
         },
         |a| strsim::levenshtein(a, start) as i64,
+        |_, _, _| 1,
     )
     .map(|path| path.into_iter().map(|(m, (i, r))| (m, i, r)).collect())
     .map_err(|e| e.to_string())
