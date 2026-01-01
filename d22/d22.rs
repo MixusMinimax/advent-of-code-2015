@@ -8,8 +8,14 @@ use std::time::Instant;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 enum StatusEffect {
+    /// Deals 1 damage to the player at the start of ONLY the player's turn. This is what we use
+    /// to implement hard mode.
+    Cancer,
+    /// Adds 7 armor.
     Armor,
+    /// Deals 3 damage per EACH the player's and boss's turn.
     Poisoned,
+    /// Gives 101 mana per EACH the player's and boss's turn.
     Recharge,
 }
 
@@ -54,10 +60,15 @@ struct GameState {
 }
 
 impl Combatant {
-    fn player() -> Self {
+    fn player(hard_mode: bool) -> Self {
         Combatant {
             hp: 50,
             mana: 500,
+            status_effects: if hard_mode {
+                vec![(i32::MAX, StatusEffect::Cancer)]
+            } else {
+                vec![]
+            },
             ..Combatant::default()
         }
     }
@@ -72,9 +83,20 @@ impl Combatant {
     }
 }
 
-fn apply_effects(mut combatant: Combatant) -> Combatant {
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum Turn {
+    Player,
+    Boss,
+}
+
+fn apply_effects(mut combatant: Combatant, turn: Turn) -> Combatant {
     for (ttl, effect) in combatant.status_effects.iter_mut() {
         match effect {
+            StatusEffect::Cancer => {
+                if turn == Turn::Player {
+                    combatant.hp -= 1
+                }
+            }
             StatusEffect::Armor => {}
             StatusEffect::Poisoned => combatant.hp -= 3,
             StatusEffect::Recharge => combatant.mana += 101,
@@ -120,18 +142,18 @@ fn attack_player(mut player: Combatant, boss: Combatant) -> GameState {
 }
 
 fn game_turn(player: Combatant, boss: Combatant, spell: Spell) -> GameState {
-    let player = apply_effects(player);
-    let boss = apply_effects(boss);
+    let player = apply_effects(player, Turn::Player);
+    let boss = apply_effects(boss, Turn::Player);
     let GameState { player, boss } = cast_spell(player, boss, spell);
-    let player = apply_effects(player);
-    let boss = apply_effects(boss);
+    let player = apply_effects(player, Turn::Boss);
+    let boss = apply_effects(boss, Turn::Boss);
     let GameState { player, boss } = attack_player(player, boss);
     GameState { player, boss }
 }
 
 fn get_possible_spells(player: &Combatant, boss: &Combatant) -> impl IntoIterator<Item = Spell> {
-    let player_after_effects = apply_effects(player.clone());
-    let boss_after_effects = apply_effects(boss.clone());
+    let player_after_effects = apply_effects(player.clone(), Turn::Player);
+    let boss_after_effects = apply_effects(boss.clone(), Turn::Player);
     [
         Spell::MagicMissile,
         Spell::Drain,
@@ -221,6 +243,9 @@ mod printout {
             .chain(game_state.boss.status_effects.iter())
         {
             match effect {
+                StatusEffect::Cancer => {
+                    println!("Cancer deals 1 damage; its timer is now {}.", ttl)
+                }
                 StatusEffect::Armor => println!("Shield's timer is now {}.", ttl),
                 StatusEffect::Poisoned => {
                     println!("Poison deals 3 damage; its timer is now {}.", ttl)
@@ -231,6 +256,7 @@ mod printout {
             }
             if *ttl == 0 {
                 match effect {
+                    StatusEffect::Cancer => println!("Cancer wears off."),
                     StatusEffect::Armor => println!("Shield wears off, decreasing armor by 7."),
                     StatusEffect::Poisoned => println!("Poison wears off."),
                     StatusEffect::Recharge => println!("Recharge wears off."),
@@ -253,15 +279,15 @@ mod printout {
         };
         println!();
         let game_state = {
-            let player = apply_effects(game_state.player);
-            let boss = apply_effects(game_state.boss);
+            let player = apply_effects(game_state.player, Turn::Player);
+            let boss = apply_effects(game_state.boss, Turn::Player);
             cast_spell(player, boss, spell)
         };
         println!("-- Boss turn --");
         print_stats_and_effects(&game_state);
         let game_state = {
-            let player = apply_effects(game_state.player);
-            let boss = apply_effects(game_state.boss);
+            let player = apply_effects(game_state.player, Turn::Boss);
+            let boss = apply_effects(game_state.boss, Turn::Boss);
             attack_player(player, boss)
         };
         if game_state.boss.hp <= 0 {
@@ -273,7 +299,8 @@ mod printout {
 }
 
 fn main() {
-    let player = Combatant::player();
+    // let player = Combatant::player(false);
+    let player = Combatant::player(true);
     let boss = Combatant::boss();
     let before = Instant::now();
     let (best_moves, _) = find_best_game(player, boss);
@@ -299,7 +326,7 @@ mod tests {
             status_effects: vec![(2, StatusEffect::Poisoned), (1, StatusEffect::Recharge)],
             ..Combatant::default()
         };
-        combatant = apply_effects(combatant);
+        combatant = apply_effects(combatant, Turn::Player);
         assert_eq!(combatant.hp, 7);
         assert_eq!(combatant.mana, 101);
         assert_eq!(combatant.status_effects.len(), 1);
