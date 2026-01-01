@@ -60,7 +60,13 @@ where
             if tentative_g_score < g_score.get(&neighbor).copied().unwrap_or(i64::MAX) {
                 came_from.insert(neighbor.clone(), (current.clone(), edge.clone()));
                 g_score.insert(neighbor.clone(), tentative_g_score);
-                f_score.insert(neighbor.clone(), tentative_g_score + heuristic(&neighbor));
+                let h = heuristic(&neighbor);
+                let h = if h == i64::MAX {
+                    i64::MAX
+                } else {
+                    tentative_g_score + h
+                };
+                f_score.insert(neighbor.clone(), h);
                 open_set.insert(neighbor);
             }
         }

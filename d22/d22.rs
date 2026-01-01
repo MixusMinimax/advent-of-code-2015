@@ -1,3 +1,5 @@
+#![feature(assert_matches)]
+
 use aoc2015::graph::a_star_rev;
 use std::cmp;
 use std::collections::HashMap;
@@ -52,8 +54,8 @@ struct GameState {
 impl Combatant {
     fn player() -> Self {
         Combatant {
-            hp: 100,
-            mana: 200,
+            hp: 50,
+            mana: 500,
             ..Combatant::default()
         }
     }
@@ -125,7 +127,7 @@ fn game_turn(player: Combatant, boss: Combatant, spell: Spell) -> GameState {
     GameState { player, boss }
 }
 
-fn get_possible_spells(player: &Combatant) -> impl IntoIterator<Item = Spell> {
+fn get_possible_spells(player: &Combatant) -> impl Iterator<Item = Spell> {
     [
         Spell::MagicMissile,
         Spell::Drain,
@@ -137,7 +139,7 @@ fn get_possible_spells(player: &Combatant) -> impl IntoIterator<Item = Spell> {
     .filter(|spell| spell.cost() <= player.mana)
 }
 
-fn best_game(player: Combatant, boss: Combatant) -> (Vec<(GameState, Spell)>, GameState) {
+fn find_best_game(player: Combatant, boss: Combatant) -> (Vec<(GameState, Spell)>, GameState) {
     fn heuristic(state: &GameState) -> i64 {
         if state.player.hp <= 0 {
             return i64::MAX;
@@ -156,7 +158,11 @@ fn best_game(player: Combatant, boss: Combatant) -> (Vec<(GameState, Spell)>, Ga
     let (best_moves, end_state) = a_star_rev(
         &start,
         |state| state.boss.hp <= 0,
-        |_| todo!() as Vec<(GameState, Spell)>,
+        |GameState { player, boss }| {
+            get_possible_spells(player)
+                .map(|spell| (game_turn(player.clone(), boss.clone(), spell), spell))
+                .collect::<Vec<_>>()
+        },
         heuristic,
         distance,
     )
@@ -165,11 +171,22 @@ fn best_game(player: Combatant, boss: Combatant) -> (Vec<(GameState, Spell)>, Ga
     (best_moves, end_state)
 }
 
-fn main() {}
+fn main() {
+    let player = Combatant::player();
+    let boss = Combatant::boss();
+    let (best_moves, end_state) = find_best_game(player, boss);
+    let mana_used: i32 = best_moves.iter().map(|(_, s)| s.cost()).sum();
+    for (state, spell) in best_moves {
+        println!("{:?} | {:?}", state, spell);
+    }
+    println!("{:?}", end_state);
+    println!("Mana used: {}", mana_used);
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn test_apply_effects() {
@@ -217,29 +234,6 @@ mod tests {
         assert_eq!(player.hp, 2);
     }
 
-    // For example, suppose the player has 10 hit points and 250 mana, and that the boss has 13 hit points and 8 damage:
-    //
-    // -- Player turn --
-    // - Player has 10 hit points, 0 armor, 250 mana
-    // - Boss has 13 hit points
-    // Player casts Poison.
-    //
-    // -- Boss turn --
-    // - Player has 10 hit points, 0 armor, 77 mana
-    // - Boss has 13 hit points
-    // Poison deals 3 damage; its timer is now 5.
-    // Boss attacks for 8 damage.
-    //
-    // -- Player turn --
-    // - Player has 2 hit points, 0 armor, 77 mana
-    // - Boss has 10 hit points
-    // Poison deals 3 damage; its timer is now 4.
-    // Player casts Magic Missile, dealing 4 damage.
-    //
-    // -- Boss turn --
-    // - Player has 2 hit points, 0 armor, 24 mana
-    // - Boss has 3 hit points
-    // Poison deals 3 damage. This kills the boss, and the player wins.
     #[test]
     fn test_game_turn() {
         let player = Combatant {
@@ -262,5 +256,75 @@ mod tests {
         assert_eq!(player.hp, 2);
         assert_eq!(player.mana, 24);
         assert_eq!(boss.hp, 0);
+    }
+
+    #[test]
+    fn test_best_game_1() {
+        let player = Combatant {
+            hp: 10,
+            mana: 250,
+            ..Combatant::default()
+        };
+        let boss = Combatant {
+            hp: 13,
+            damage: 8,
+            ..Combatant::default()
+        };
+        let (best_moves, end_state) = find_best_game(player, boss);
+        let mana_used: i32 = best_moves.iter().map(|(_, s)| s.cost()).sum();
+        assert_eq!(mana_used, 173 + 53);
+        assert_eq!(
+            best_moves.iter().map(|(_, s)| *s).collect::<Vec<_>>(),
+            [Spell::Poison, Spell::MagicMissile]
+        );
+        assert_matches!(
+            end_state,
+            GameState {
+                player: Combatant {
+                    hp: 2,
+                    mana: 24,
+                    ..
+                },
+                boss: Combatant { hp: 0, .. }
+            }
+        );
+    }
+
+    #[test]
+    fn test_best_game_2() {
+        let player = Combatant {
+            hp: 10,
+            mana: 250,
+            ..Combatant::default()
+        };
+        let boss = Combatant {
+            hp: 14,
+            damage: 8,
+            ..Combatant::default()
+        };
+        let (best_moves, end_state) = find_best_game(player, boss);
+        let mana_used: i32 = best_moves.iter().map(|(_, s)| s.cost()).sum();
+        assert_eq!(mana_used, 229 + 113 + 73 + 173 + 53);
+        assert_eq!(
+            best_moves.iter().map(|(_, s)| *s).collect::<Vec<_>>(),
+            [
+                Spell::Recharge,
+                Spell::Shield,
+                Spell::Drain,
+                Spell::Poison,
+                Spell::MagicMissile
+            ]
+        );
+        assert_matches!(
+            end_state,
+            GameState {
+                player: Combatant {
+                    hp: 1,
+                    mana: 114,
+                    ..
+                },
+                boss: Combatant { hp: -1, .. },
+            }
+        );
     }
 }
