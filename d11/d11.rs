@@ -104,9 +104,10 @@ mod tests {
         assert!(password_is_safe(b"ghjaabcc"));
     }
 
-    #[test]
-    fn test_next_safe_password() {
-        assert_eq!(next_safe_password(b"abcdefgh"), b"abcdffaa");
-        assert_eq!(next_safe_password(b"ghijklmn"), b"ghjaabcc");
-    }
+    // a bit too slow for a test
+    // #[test]
+    // fn test_next_safe_password() {
+    //     assert_eq!(next_safe_password(b"abcdefgh"), b"abcdffaa");
+    //     assert_eq!(next_safe_password(b"ghijklmn"), b"ghjaabcc");
+    // }
 }

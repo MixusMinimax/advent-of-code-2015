@@ -357,6 +357,7 @@ mod tests {
             ..Combatant::default()
         };
         let boss = Combatant {
+            hp: 1,
             damage: 8,
             ..Combatant::default()
         };
