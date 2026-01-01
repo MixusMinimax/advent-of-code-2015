@@ -4,6 +4,7 @@ use crate::printout::print_turn;
 use aoc2015::graph::a_star_rev;
 use std::cmp;
 use std::collections::HashMap;
+use std::time::Instant;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 enum StatusEffect {
@@ -274,7 +275,9 @@ mod printout {
 fn main() {
     let player = Combatant::player();
     let boss = Combatant::boss();
+    let before = Instant::now();
     let (best_moves, _) = find_best_game(player, boss);
+    println!("Elapsed: {:.2?}", before.elapsed());
     let mana_used: i32 = best_moves.iter().map(|(_, s)| s.cost()).sum();
     println!("Mana used: {}", mana_used);
     for (state, spell) in best_moves {
