@@ -1,5 +1,6 @@
 #![feature(assert_matches)]
 
+use crate::printout::print_turn;
 use aoc2015::graph::a_star_rev;
 use std::cmp;
 use std::collections::HashMap;
@@ -127,7 +128,9 @@ fn game_turn(player: Combatant, boss: Combatant, spell: Spell) -> GameState {
     GameState { player, boss }
 }
 
-fn get_possible_spells(player: &Combatant) -> impl Iterator<Item = Spell> {
+fn get_possible_spells(player: &Combatant, boss: &Combatant) -> impl IntoIterator<Item = Spell> {
+    let player_after_effects = apply_effects(player.clone());
+    let boss_after_effects = apply_effects(boss.clone());
     [
         Spell::MagicMissile,
         Spell::Drain,
@@ -136,10 +139,41 @@ fn get_possible_spells(player: &Combatant) -> impl Iterator<Item = Spell> {
         Spell::Recharge,
     ]
     .into_iter()
-    .filter(|spell| spell.cost() <= player.mana)
+    .filter(|spell| spell.cost() <= player_after_effects.mana)
+    .filter(|spell| match spell {
+        Spell::Shield => !player_after_effects
+            .status_effects
+            .iter()
+            .any(|(_, e)| *e == StatusEffect::Armor),
+        Spell::Poison => !boss_after_effects
+            .status_effects
+            .iter()
+            .any(|(_, e)| *e == StatusEffect::Poisoned),
+        Spell::Recharge => !player_after_effects
+            .status_effects
+            .iter()
+            .any(|(_, e)| *e == StatusEffect::Recharge),
+        _ => true,
+    })
+    .filter(|spell| {
+        let GameState { player: p, .. } = game_turn(player.clone(), boss.clone(), *spell);
+        p.hp > 0
+    })
+    .collect::<Vec<_>>()
 }
 
 fn find_best_game(player: Combatant, boss: Combatant) -> (Vec<(GameState, Spell)>, GameState) {
+    fn is_goal(state: &GameState) -> bool {
+        state.boss.hp <= 0
+    }
+
+    fn get_neighbors(GameState { player, boss }: &GameState) -> Vec<(GameState, Spell)> {
+        get_possible_spells(player, boss)
+            .into_iter()
+            .map(|spell| (game_turn(player.clone(), boss.clone(), spell), spell))
+            .collect::<Vec<_>>()
+    }
+
     fn heuristic(state: &GameState) -> i64 {
         if state.player.hp <= 0 {
             return i64::MAX;
@@ -150,37 +184,103 @@ fn find_best_game(player: Combatant, boss: Combatant) -> (Vec<(GameState, Spell)
         (state.boss.hp * 10 - state.player.mana) as i64
     }
 
-    fn distance(_: &GameState, edge: &Spell, _: &GameState) -> i64 {
-        edge.cost() as i64
-    }
+    let distance = |_: &GameState, edge: &Spell, _: &GameState| -> i64 { edge.cost() as i64 };
 
     let start = GameState { player, boss };
-    let (best_moves, end_state) = a_star_rev(
-        &start,
-        |state| state.boss.hp <= 0,
-        |GameState { player, boss }| {
-            get_possible_spells(player)
-                .map(|spell| (game_turn(player.clone(), boss.clone(), spell), spell))
-                .collect::<Vec<_>>()
-        },
-        heuristic,
-        distance,
-    )
-    .unwrap();
+    let (best_moves, end_state) =
+        a_star_rev(&start, is_goal, get_neighbors, heuristic, distance).unwrap();
     let best_moves = best_moves.into_iter().rev().collect();
     (best_moves, end_state)
+}
+
+mod printout {
+    use super::*;
+
+    fn print_stats_and_effects(game_state: &GameState) {
+        println!(
+            "- Player has {} hit points, {} armor, {} mana",
+            game_state.player.hp,
+            if game_state
+                .player
+                .status_effects
+                .iter()
+                .any(|(_, e)| *e == StatusEffect::Armor)
+            {
+                7
+            } else {
+                0
+            },
+            game_state.player.mana
+        );
+        println!("- Boss has {} hit points", game_state.boss.hp);
+        for (ttl, effect) in game_state
+            .player
+            .status_effects
+            .iter()
+            .chain(game_state.boss.status_effects.iter())
+        {
+            match effect {
+                StatusEffect::Armor => println!("Shield's timer is now {}.", ttl),
+                StatusEffect::Poisoned => {
+                    println!("Poison deals 3 damage; its timer is now {}.", ttl)
+                }
+                StatusEffect::Recharge => {
+                    println!("Recharge provides 101 mana; its timer is now {}.", ttl)
+                }
+            }
+            if *ttl == 0 {
+                match effect {
+                    StatusEffect::Armor => println!("Shield wears off, decreasing armor by 7."),
+                    StatusEffect::Poisoned => println!("Poison wears off."),
+                    StatusEffect::Recharge => println!("Recharge wears off."),
+                }
+            }
+        }
+    }
+
+    pub fn print_turn(game_state: GameState, spell: Spell) {
+        println!("-- Player turn --");
+        print_stats_and_effects(&game_state);
+        match spell {
+            Spell::MagicMissile => println!("Player casts Magic Missile, dealing 4 damage."),
+            Spell::Drain => {
+                println!("Player casts Drain, dealing 2 damage, and healing 2 hit points.")
+            }
+            Spell::Shield => println!("Player casts Shield, increasing armor by 7."),
+            Spell::Poison => println!("Player casts Poison."),
+            Spell::Recharge => println!("Player casts Recharge."),
+        };
+        println!();
+        let game_state = {
+            let player = apply_effects(game_state.player);
+            let boss = apply_effects(game_state.boss);
+            cast_spell(player, boss, spell)
+        };
+        println!("-- Boss turn --");
+        print_stats_and_effects(&game_state);
+        let game_state = {
+            let player = apply_effects(game_state.player);
+            let boss = apply_effects(game_state.boss);
+            attack_player(player, boss)
+        };
+        if game_state.boss.hp <= 0 {
+            println!("Boss is dead.");
+        } else {
+            println!("Boss attacks for {} damage.", game_state.boss.damage);
+        }
+    }
 }
 
 fn main() {
     let player = Combatant::player();
     let boss = Combatant::boss();
-    let (best_moves, end_state) = find_best_game(player, boss);
+    let (best_moves, _) = find_best_game(player, boss);
     let mana_used: i32 = best_moves.iter().map(|(_, s)| s.cost()).sum();
-    for (state, spell) in best_moves {
-        println!("{:?} | {:?}", state, spell);
-    }
-    println!("{:?}", end_state);
     println!("Mana used: {}", mana_used);
+    for (state, spell) in best_moves {
+        print_turn(state, spell);
+        println!();
+    }
 }
 
 #[cfg(test)]
