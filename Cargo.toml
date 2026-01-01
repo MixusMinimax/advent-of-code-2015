@@ -103,6 +103,10 @@ path = "d23/d23.rs"
 name = "d24"
 path = "d24/d24.rs"
 
+[[bin]]
+name = "d25"
+path = "d25/d25.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 indicatif = "0.18.3"
