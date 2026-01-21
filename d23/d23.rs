@@ -14,7 +14,7 @@ type Reg = char;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum Ins {
-    /// Half the contents of register r
+    /// Halve the contents of register r
     Hlf(Reg),
     /// Triple the contents of register r
     Tpl(Reg),
